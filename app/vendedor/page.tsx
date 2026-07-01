@@ -222,10 +222,10 @@ setMensaje('✅ Pedido generado exitosamente')
                   </div>
                   <div className="flex items-center gap-1">
                     <button onClick={() => actualizarCantidad(i.producto.id, i.cantidad - 1)}
-                      className="w-6 h-6 bg-gray-200 rounded text-sm font-bold">-</button>
-                    <span className="w-8 text-center text-sm">{i.cantidad}</span>
-                    <button onClick={() => actualizarCantidad(i.producto.id, i.cantidad + 1)}
-                      className="w-6 h-6 bg-gray-200 rounded text-sm font-bold">+</button>
+  className="w-7 h-7 bg-gray-700 text-white rounded font-bold text-sm hover:bg-gray-900">-</button>
+<span className="w-8 text-center text-sm font-bold text-gray-900">{i.cantidad}</span>
+<button onClick={() => actualizarCantidad(i.producto.id, i.cantidad + 1)}
+  className="w-7 h-7 bg-gray-700 text-white rounded font-bold text-sm hover:bg-gray-900">+</button>
                   </div>
                   <p className="text-sm font-medium w-24 text-right">${i.subtotal.toLocaleString()}</p>
                   <button onClick={() => eliminarItem(i.producto.id)}
