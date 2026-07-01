@@ -16,10 +16,7 @@ export default function LoginPage() {
     setLoading(true)
     setError('')
 
-    const { data, error } = await supabase.auth.signInWithPassword({
-      email,
-      password,
-    })
+    const { data, error } = await supabase.auth.signInWithPassword({ email, password })
 
     if (error) {
       setError('Correo o contraseña incorrectos')
@@ -40,54 +37,150 @@ export default function LoginPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-900 flex items-center justify-center">
-      <div className="bg-white rounded-2xl shadow-xl p-8 w-full max-w-md">
-        <div className="text-center mb-8">
-          <h1 className="text-2xl font-bold text-gray-800">E.M. Compañía</h1>
-          <p className="text-gray-500 mt-1">Sistema de Cotizaciones y Pedidos</p>
+    <div style={{
+      minHeight: '100vh',
+      background: '#0F2244',
+      display: 'flex',
+      alignItems: 'center',
+      justifyContent: 'center',
+      fontFamily: 'system-ui, -apple-system, sans-serif',
+      padding: '24px',
+    }}>
+      {/* Fondo con patrón sutil */}
+      <div style={{
+        position: 'absolute', inset: 0, overflow: 'hidden', pointerEvents: 'none',
+      }}>
+        <div style={{
+          position: 'absolute', top: '-20%', right: '-10%',
+          width: '500px', height: '500px', borderRadius: '50%',
+          background: 'rgba(212,160,23,0.04)',
+        }} />
+        <div style={{
+          position: 'absolute', bottom: '-20%', left: '-10%',
+          width: '400px', height: '400px', borderRadius: '50%',
+          background: 'rgba(255,255,255,0.02)',
+        }} />
+      </div>
+
+      <div style={{ width: '100%', maxWidth: '400px', position: 'relative' }}>
+        {/* Logo / Marca */}
+        <div style={{ textAlign: 'center', marginBottom: '32px' }}>
+          <div style={{
+            width: '56px', height: '56px',
+            background: '#D4A017',
+            borderRadius: '14px',
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            margin: '0 auto 16px',
+            fontSize: '22px', fontWeight: '800', color: '#0F2244',
+            letterSpacing: '-1px',
+          }}>
+            EM
+          </div>
+          <h1 style={{ fontSize: '22px', fontWeight: '700', color: '#fff', margin: 0 }}>
+            E.M. Compañía S.A.S
+          </h1>
+          <p style={{ fontSize: '13px', color: 'rgba(255,255,255,0.4)', marginTop: '6px' }}>
+            Sistema de cotizaciones y pedidos
+          </p>
         </div>
 
-        <form onSubmit={handleLogin} className="space-y-4">
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              Correo electrónico
-            </label>
-            <input
-              type="email"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              className="w-full border border-gray-300 rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
-              placeholder="tu@email.com"
-              required
-            />
-          </div>
+        {/* Tarjeta de login */}
+        <div style={{
+          background: 'rgba(255,255,255,0.05)',
+          border: '1px solid rgba(255,255,255,0.1)',
+          borderRadius: '16px',
+          padding: '32px',
+        }}>
+          <form onSubmit={handleLogin}>
+            <div style={{ marginBottom: '18px' }}>
+              <label style={{
+                display: 'block', fontSize: '12px', fontWeight: '500',
+                color: 'rgba(255,255,255,0.5)', marginBottom: '8px',
+                textTransform: 'uppercase', letterSpacing: '0.06em',
+              }}>
+                Correo electrónico
+              </label>
+              <input
+                type="email"
+                value={email}
+                onChange={e => setEmail(e.target.value)}
+                placeholder="tu@emcompania.com"
+                required
+                style={{
+                  width: '100%', boxSizing: 'border-box',
+                  background: 'rgba(255,255,255,0.06)',
+                  border: '1px solid rgba(255,255,255,0.12)',
+                  borderRadius: '8px', padding: '11px 14px',
+                  fontSize: '14px', color: '#fff',
+                  outline: 'none',
+                }}
+                onFocus={e => e.target.style.borderColor = 'rgba(212,160,23,0.6)'}
+                onBlur={e => e.target.style.borderColor = 'rgba(255,255,255,0.12)'}
+              />
+            </div>
 
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              Contraseña
-            </label>
-            <input
-              type="password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              className="w-full border border-gray-300 rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
-              placeholder="••••••••"
-              required
-            />
-          </div>
+            <div style={{ marginBottom: '24px' }}>
+              <label style={{
+                display: 'block', fontSize: '12px', fontWeight: '500',
+                color: 'rgba(255,255,255,0.5)', marginBottom: '8px',
+                textTransform: 'uppercase', letterSpacing: '0.06em',
+              }}>
+                Contraseña
+              </label>
+              <input
+                type="password"
+                value={password}
+                onChange={e => setPassword(e.target.value)}
+                placeholder="••••••••"
+                required
+                style={{
+                  width: '100%', boxSizing: 'border-box',
+                  background: 'rgba(255,255,255,0.06)',
+                  border: '1px solid rgba(255,255,255,0.12)',
+                  borderRadius: '8px', padding: '11px 14px',
+                  fontSize: '14px', color: '#fff',
+                  outline: 'none',
+                }}
+                onFocus={e => e.target.style.borderColor = 'rgba(212,160,23,0.6)'}
+                onBlur={e => e.target.style.borderColor = 'rgba(255,255,255,0.12)'}
+              />
+            </div>
 
-          {error && (
-            <p className="text-red-500 text-sm">{error}</p>
-          )}
+            {error && (
+              <div style={{
+                background: 'rgba(220,53,69,0.15)',
+                border: '1px solid rgba(220,53,69,0.3)',
+                borderRadius: '8px', padding: '10px 14px',
+                fontSize: '13px', color: '#ff8080',
+                marginBottom: '18px',
+              }}>
+                ⚠ {error}
+              </div>
+            )}
 
-          <button
-            type="submit"
-            disabled={loading}
-            className="w-full bg-blue-600 text-white py-2 rounded-lg font-medium hover:bg-blue-700 transition disabled:opacity-50"
-          >
-            {loading ? 'Ingresando...' : 'Ingresar'}
-          </button>
-        </form>
+            <button
+              type="submit"
+              disabled={loading}
+              style={{
+                width: '100%', padding: '13px',
+                background: loading ? 'rgba(212,160,23,0.5)' : '#D4A017',
+                color: '#0F2244', border: 'none',
+                borderRadius: '8px', fontSize: '14px',
+                fontWeight: '700', cursor: loading ? 'not-allowed' : 'pointer',
+                letterSpacing: '0.02em', transition: 'all 0.15s',
+              }}
+            >
+              {loading ? 'Verificando...' : 'Ingresar al sistema'}
+            </button>
+          </form>
+        </div>
+
+        <p style={{
+          textAlign: 'center', marginTop: '24px',
+          fontSize: '11px', color: 'rgba(255,255,255,0.2)',
+        }}>
+          E.M. Compañía S.A.S · 40 años de experiencia industrial
+        </p>
       </div>
     </div>
   )

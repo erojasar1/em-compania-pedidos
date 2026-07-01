@@ -14,9 +14,7 @@ export default function AdminPanel() {
   const [mensaje, setMensaje] = useState('')
   const router = useRouter()
 
-  useEffect(() => {
-    cargarUsuarios()
-  }, [])
+  useEffect(() => { cargarUsuarios() }, [])
 
   const cargarUsuarios = async () => {
     const { data } = await supabase
@@ -30,13 +28,11 @@ export default function AdminPanel() {
     e.preventDefault()
     setLoading(true)
     setMensaje('')
-
     const res = await fetch('/api/crear-usuario', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ email, password, nombre, rol }),
     })
-
     const result = await res.json()
     if (result.error) {
       setMensaje('Error: ' + result.error)
@@ -48,8 +44,8 @@ export default function AdminPanel() {
     setLoading(false)
   }
 
-  const eliminarUsuario = async (id: string, email: string) => {
-    if (!confirm(`¿Eliminar usuario ${email}?`)) return
+  const eliminarUsuario = async (id: string, emailU: string) => {
+    if (!confirm(`¿Eliminar usuario ${emailU}?`)) return
     await supabase.from('usuarios').delete().eq('id', id)
     cargarUsuarios()
   }
@@ -59,59 +55,277 @@ export default function AdminPanel() {
     router.push('/login')
   }
 
-  return (
-    <div className="min-h-screen bg-gray-100">
-      <nav className="bg-blue-700 text-white px-6 py-4 flex justify-between items-center">
-        <h1 className="text-xl font-bold">E.M. Compañía — Panel Administrador</h1>
-        <button onClick={cerrarSesion} className="text-sm bg-blue-900 px-4 py-2 rounded hover:bg-blue-800">
-          Cerrar sesión
-        </button>
-      </nav>
+  const rolColors: Record<string, { bg: string; color: string }> = {
+    vendedor:      { bg: '#E8F0FE', color: '#1A56B0' },
+    contable:      { bg: '#FEF3CD', color: '#92610A' },
+    administrador: { bg: '#F3E8FF', color: '#6B21A8' },
+  }
 
-      <div className="max-w-5xl mx-auto p-6 grid grid-cols-1 md:grid-cols-2 gap-6">
-        <div className="bg-white rounded-xl shadow p-6">
-          <h2 className="text-lg font-bold mb-4 text-gray-800">Crear usuario</h2>
-          <form onSubmit={crearUsuario} className="space-y-3">
-            <input value={nombre} onChange={e => setNombre(e.target.value)}
-              placeholder="Nombre completo" required
-              className="w-full border rounded-lg px-3 py-2 text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500" />
-            <input value={email} onChange={e => setEmail(e.target.value)}
-              placeholder="Correo electrónico" type="email" required
-              className="w-full border rounded-lg px-3 py-2 text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500" />
-            <input value={password} onChange={e => setPassword(e.target.value)}
-              placeholder="Contraseña" type="password" required
-              className="w-full border rounded-lg px-3 py-2 text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500" />
-            <select value={rol} onChange={e => setRol(e.target.value)}
-              className="w-full border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
-              <option value="vendedor">Vendedor</option>
-              <option value="contable">Contable</option>
-              <option value="administrador">Administrador</option>
-            </select>
-            {mensaje && <p className={`text-sm ${mensaje.includes('Error') ? 'text-red-500' : 'text-green-600'}`}>{mensaje}</p>}
-            <button type="submit" disabled={loading}
-              className="w-full bg-blue-600 text-white py-2 rounded-lg text-sm font-medium hover:bg-blue-700 disabled:opacity-50">
-              {loading ? 'Creando...' : 'Crear usuario'}
-            </button>
-          </form>
+  const rolIconos: Record<string, string> = {
+    vendedor: '🛒',
+    contable: '🧾',
+    administrador: '⚙️',
+  }
+
+  const totalVendedores = usuarios.filter(u => u.rol === 'vendedor').length
+  const totalContables = usuarios.filter(u => u.rol === 'contable').length
+  const totalAdmins = usuarios.filter(u => u.rol === 'administrador').length
+
+  return (
+    <div style={{ display: 'flex', minHeight: '100vh', fontFamily: 'system-ui, -apple-system, sans-serif' }}>
+      {/* SIDEBAR */}
+      <aside style={{
+        width: '220px', minHeight: '100vh', background: '#0F2244',
+        display: 'flex', flexDirection: 'column', flexShrink: 0,
+      }}>
+        <div style={{ padding: '24px 20px 20px', borderBottom: '1px solid rgba(255,255,255,0.08)' }}>
+          <div style={{
+            width: '36px', height: '36px', background: '#D4A017', borderRadius: '8px',
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            fontSize: '13px', fontWeight: '800', color: '#0F2244', marginBottom: '12px',
+          }}>EM</div>
+          <div style={{ fontSize: '13px', fontWeight: '600', color: '#fff' }}>E.M. Compañía</div>
+          <div style={{ fontSize: '11px', color: 'rgba(255,255,255,0.35)', marginTop: '3px' }}>Panel Administrador</div>
         </div>
 
-        <div className="bg-white rounded-xl shadow p-6">
-          <h2 className="text-lg font-bold mb-4 text-gray-800">Usuarios registrados</h2>
-          <div className="space-y-2">
-            {usuarios.map(u => (
-              <div key={u.id} className="flex justify-between items-center border rounded-lg px-3 py-2">
+        <nav style={{ padding: '16px 10px', flex: 1 }}>
+          {[
+            { icon: '👥', label: 'Usuarios', active: true },
+            { icon: '📊', label: 'Actividad', active: false },
+          ].map(item => (
+            <div key={item.label} style={{
+              display: 'flex', alignItems: 'center', gap: '10px',
+              padding: '9px 12px', borderRadius: '8px', marginBottom: '2px',
+              background: item.active ? 'rgba(255,255,255,0.09)' : 'transparent',
+              color: item.active ? '#fff' : 'rgba(255,255,255,0.4)',
+              fontSize: '13px', cursor: 'pointer',
+            }}>
+              <span style={{ fontSize: '14px' }}>{item.icon}</span>
+              {item.label}
+              {item.active && (
+                <span style={{
+                  marginLeft: 'auto', width: '7px', height: '7px',
+                  borderRadius: '50%', background: '#D4A017',
+                }} />
+              )}
+            </div>
+          ))}
+        </nav>
+
+        <div style={{ padding: '16px 10px', borderTop: '1px solid rgba(255,255,255,0.08)' }}>
+          <button onClick={cerrarSesion} style={{
+            display: 'flex', alignItems: 'center', gap: '8px',
+            background: 'none', border: 'none', cursor: 'pointer',
+            color: 'rgba(255,255,255,0.3)', fontSize: '12px', padding: '8px 12px', width: '100%',
+          }}>
+            🚪 Cerrar sesión
+          </button>
+        </div>
+      </aside>
+
+      {/* MAIN */}
+      <main style={{ flex: 1, background: '#F5F6FA', padding: '28px', minHeight: '100vh' }}>
+        <div style={{ marginBottom: '24px' }}>
+          <h1 style={{ fontSize: '20px', fontWeight: '700', color: '#0F2244', margin: 0 }}>
+            Gestión de usuarios
+          </h1>
+          <p style={{ fontSize: '12px', color: '#999', marginTop: '4px' }}>
+            Control de acceso por roles al sistema
+          </p>
+        </div>
+
+        {/* Stats de usuarios */}
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '12px', marginBottom: '24px' }}>
+          {[
+            { label: 'Vendedores', value: totalVendedores, icon: '🛒', color: '#1A56B0', bg: '#E8F0FE' },
+            { label: 'Contables', value: totalContables, icon: '🧾', color: '#92610A', bg: '#FEF3CD' },
+            { label: 'Administradores', value: totalAdmins, icon: '⚙️', color: '#6B21A8', bg: '#F3E8FF' },
+          ].map(stat => (
+            <div key={stat.label} style={{
+              background: '#fff', borderRadius: '10px', padding: '14px 16px',
+              border: '0.5px solid #E0E3EC',
+            }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
                 <div>
-                  <p className="text-sm font-medium text-gray-800">{u.nombre}</p>
-                  <p className="text-xs text-gray-500">{u.email} · <span className="capitalize">{u.rol}</span></p>
+                  <div style={{ fontSize: '11px', color: '#999', marginBottom: '6px' }}>{stat.label}</div>
+                  <div style={{ fontSize: '26px', fontWeight: '700', color: '#0F2244' }}>{stat.value}</div>
                 </div>
-                <button onClick={() => eliminarUsuario(u.id, u.email)}
-                  className="text-red-500 text-xs hover:text-red-700">Eliminar</button>
+                <div style={{
+                  width: '36px', height: '36px', borderRadius: '8px',
+                  background: stat.bg, display: 'flex', alignItems: 'center',
+                  justifyContent: 'center', fontSize: '16px',
+                }}>
+                  {stat.icon}
+                </div>
               </div>
-            ))}
-            {usuarios.length === 0 && <p className="text-sm text-gray-400">No hay usuarios aún.</p>}
+            </div>
+          ))}
+        </div>
+
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1.4fr', gap: '20px', alignItems: 'start' }}>
+          {/* Formulario */}
+          <div style={{
+            background: '#fff', borderRadius: '12px', padding: '22px',
+            border: '0.5px solid #E0E3EC',
+          }}>
+            <h2 style={{ fontSize: '15px', fontWeight: '600', color: '#0F2244', marginBottom: '18px' }}>
+              Crear nuevo usuario
+            </h2>
+            <form onSubmit={crearUsuario}>
+              {[
+                { label: 'Nombre completo', value: nombre, set: setNombre, type: 'text', placeholder: 'Ej. Carlos Martínez' },
+                { label: 'Correo electrónico', value: email, set: setEmail, type: 'email', placeholder: 'carlos@emcompania.com' },
+                { label: 'Contraseña', value: password, set: setPassword, type: 'password', placeholder: '••••••••' },
+              ].map(field => (
+                <div key={field.label} style={{ marginBottom: '14px' }}>
+                  <label style={{
+                    display: 'block', fontSize: '11px', fontWeight: '500',
+                    color: '#666', marginBottom: '6px',
+                    textTransform: 'uppercase', letterSpacing: '0.05em',
+                  }}>
+                    {field.label}
+                  </label>
+                  <input
+                    type={field.type}
+                    value={field.value}
+                    onChange={e => field.set(e.target.value)}
+                    placeholder={field.placeholder}
+                    required
+                    style={{
+                      width: '100%', boxSizing: 'border-box',
+                      border: '0.5px solid #E0E3EC', borderRadius: '8px',
+                      padding: '10px 12px', fontSize: '13px', color: '#0F2244',
+                      outline: 'none', background: '#FAFAFA',
+                    }}
+                    onFocus={e => e.target.style.borderColor = '#D4A017'}
+                    onBlur={e => e.target.style.borderColor = '#E0E3EC'}
+                  />
+                </div>
+              ))}
+
+              <div style={{ marginBottom: '18px' }}>
+                <label style={{
+                  display: 'block', fontSize: '11px', fontWeight: '500',
+                  color: '#666', marginBottom: '6px',
+                  textTransform: 'uppercase', letterSpacing: '0.05em',
+                }}>
+                  Rol
+                </label>
+                <select
+                  value={rol}
+                  onChange={e => setRol(e.target.value)}
+                  style={{
+                    width: '100%', border: '0.5px solid #E0E3EC', borderRadius: '8px',
+                    padding: '10px 12px', fontSize: '13px', color: '#0F2244',
+                    outline: 'none', background: '#FAFAFA',
+                  }}>
+                  <option value="vendedor">🛒 Vendedor</option>
+                  <option value="contable">🧾 Contable</option>
+                  <option value="administrador">⚙️ Administrador</option>
+                </select>
+              </div>
+
+              {mensaje && (
+                <div style={{
+                  padding: '10px 12px', borderRadius: '8px', fontSize: '12px',
+                  marginBottom: '14px',
+                  background: mensaje.includes('Error') ? '#FEE2E2' : '#D4EDDA',
+                  color: mensaje.includes('Error') ? '#991B1B' : '#1A6B35',
+                  border: `0.5px solid ${mensaje.includes('Error') ? '#FCA5A5' : '#B8DFC8'}`,
+                }}>
+                  {mensaje.includes('Error') ? '⚠ ' : '✅ '}{mensaje}
+                </div>
+              )}
+
+              <button
+                type="submit"
+                disabled={loading}
+                style={{
+                  width: '100%', padding: '11px',
+                  background: loading ? 'rgba(15,34,68,0.5)' : '#0F2244',
+                  color: '#fff', border: 'none', borderRadius: '8px',
+                  fontSize: '13px', fontWeight: '600', cursor: loading ? 'not-allowed' : 'pointer',
+                }}>
+                {loading ? 'Creando...' : '+ Crear usuario'}
+              </button>
+            </form>
+          </div>
+
+          {/* Lista de usuarios */}
+          <div style={{
+            background: '#fff', borderRadius: '12px', padding: '22px',
+            border: '0.5px solid #E0E3EC',
+          }}>
+            <h2 style={{ fontSize: '15px', fontWeight: '600', color: '#0F2244', marginBottom: '18px' }}>
+              Usuarios registrados
+              <span style={{
+                marginLeft: '8px', fontSize: '11px', fontWeight: '500',
+                background: '#EEF0F8', color: '#0F2244',
+                padding: '2px 8px', borderRadius: '10px',
+              }}>
+                {usuarios.length}
+              </span>
+            </h2>
+
+            {usuarios.length === 0 ? (
+              <p style={{ fontSize: '13px', color: '#bbb', textAlign: 'center', padding: '24px 0' }}>
+                No hay usuarios registrados aún.
+              </p>
+            ) : (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                {usuarios.map(u => {
+                  const rc = rolColors[u.rol] || { bg: '#f0f0f0', color: '#555' }
+                  return (
+                    <div key={u.id} style={{
+                      display: 'flex', alignItems: 'center', gap: '12px',
+                      border: '0.5px solid #E0E3EC', borderRadius: '8px',
+                      padding: '12px 14px',
+                    }}>
+                      {/* Avatar */}
+                      <div style={{
+                        width: '36px', height: '36px', borderRadius: '50%',
+                        background: rc.bg, display: 'flex', alignItems: 'center',
+                        justifyContent: 'center', fontSize: '15px', flexShrink: 0,
+                      }}>
+                        {rolIconos[u.rol] || '👤'}
+                      </div>
+                      <div style={{ flex: 1, minWidth: 0 }}>
+                        <div style={{ fontSize: '13px', fontWeight: '600', color: '#0F2244' }}>
+                          {u.nombre}
+                        </div>
+                        <div style={{ fontSize: '11px', color: '#999', marginTop: '1px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                          {u.email}
+                        </div>
+                      </div>
+                      <span style={{
+                        fontSize: '10px', fontWeight: '500',
+                        background: rc.bg, color: rc.color,
+                        padding: '3px 8px', borderRadius: '10px',
+                        textTransform: 'capitalize', flexShrink: 0,
+                      }}>
+                        {u.rol}
+                      </span>
+                      <button
+                        onClick={() => eliminarUsuario(u.id, u.email)}
+                        style={{
+                          background: 'none', border: 'none', cursor: 'pointer',
+                          color: '#ddd', fontSize: '14px', padding: '4px',
+                          flexShrink: 0, transition: 'color 0.15s',
+                        }}
+                        onMouseOver={e => (e.currentTarget.style.color = '#E53E3E')}
+                        onMouseOut={e => (e.currentTarget.style.color = '#ddd')}
+                        title="Eliminar usuario"
+                      >
+                        🗑
+                      </button>
+                    </div>
+                  )
+                })}
+              </div>
+            )}
           </div>
         </div>
-      </div>
+      </main>
     </div>
   )
 }
