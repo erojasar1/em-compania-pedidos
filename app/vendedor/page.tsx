@@ -123,7 +123,23 @@ export default function VendedorPanel() {
         estado: 'pendiente'
       })
 
-      setMensaje('✅ Pedido generado exitosamente')
+      await fetch('/api/notificar-pedido', {
+  method: 'POST',
+  headers: { 'Content-Type': 'application/json' },
+  body: JSON.stringify({
+    clienteNombre,
+    clienteNit,
+    total,
+    vendedor: user?.email || 'Vendedor',
+    items: items.map(i => ({
+      codigo: i.producto.codigo,
+      descripcion: i.producto.descripcion,
+      cantidad: i.cantidad,
+      subtotal: i.subtotal
+    }))
+  })
+})
+setMensaje('✅ Pedido generado exitosamente')
       setItems([])
       setClienteNombre('')
       setClienteNit('')
