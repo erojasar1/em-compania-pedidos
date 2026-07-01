@@ -4,7 +4,7 @@ import { NextResponse } from 'next/server'
 const resend = new Resend(process.env.RESEND_API_KEY)
 
 export async function POST(req: Request) {
-  const { clienteNombre, clienteNit, total, vendedor, items } = await req.json()
+  const { clienteNombre, clienteNit, total, vendedor, vendedorNombre, items } = await req.json()
 
   const itemsHTML = items.map((i: any) => `
     <tr>
@@ -34,7 +34,7 @@ export async function POST(req: Request) {
             ${clienteNit ? `<tr><td style="padding:8px;font-weight:bold">NIT:</td><td style="padding:8px">${clienteNit}</td></tr>` : ''}
             <tr>
               <td style="padding:8px;font-weight:bold">Vendedor:</td>
-              <td style="padding:8px">${vendedor}</td>
+              <td style="padding:8px">${vendedorNombre || vendedor || 'Sin asignar'}</td>
             </tr>
           </table>
           <h3 style="color:#1F4E79">Productos</h3>
