@@ -16,7 +16,7 @@ export async function POST(req: Request) {
   `).join('')
 
   const { error } = await resend.emails.send({
-    from: process.env.RESEND_FROM_EMAIL!,
+    from: 'onboarding@resend.dev',
     to: process.env.CONTABLE_EMAIL!,
     subject: `🛒 Nuevo pedido — ${clienteNombre} — $${total.toLocaleString()} COP`,
     html: `
