@@ -11,7 +11,7 @@ export async function POST(req: Request) {
       <td style="padding:8px;border:1px solid #ddd;font-family:Arial">${i.codigo}</td>
       <td style="padding:8px;border:1px solid #ddd;font-family:Arial">${i.descripcion}</td>
       <td style="padding:8px;border:1px solid #ddd;text-align:center;font-family:Arial">${i.cantidad}</td>
-      <td style="padding:8px;border:1px solid #ddd;text-align:right;font-family:Arial">$${i.subtotal.toLocaleString()}</td>
+      <td <td style="padding:8px;border:1px solid #ddd;text-align:right;font-family:Arial">$${(i.precio * i.cantidad).toLocaleString()}</td>
     </tr>
   `).join('')
 

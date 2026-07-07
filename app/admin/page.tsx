@@ -12,6 +12,10 @@ export default function AdminPanel() {
   const [password, setPassword] = useState('')
   const [loading, setLoading] = useState(false)
   const [mensaje, setMensaje] = useState('')
+  const [cambioPass, setCambioPass] = useState<Record<string, string>>({})
+  const [cambioVisible, setCambioVisible] = useState<Record<string, boolean>>({})
+  const [cambioLoading, setCambioLoading] = useState<Record<string, boolean>>({})
+  const [cambioMensaje, setCambioMensaje] = useState<Record<string, { text: string; ok: boolean }>>({})
   const router = useRouter()
 
   useEffect(() => { cargarUsuarios() }, [])
@@ -50,6 +54,38 @@ export default function AdminPanel() {
     cargarUsuarios()
   }
 
+  const toggleCambioPass = (id: string) => {
+    setCambioVisible(prev => ({ ...prev, [id]: !prev[id] }))
+    setCambioPass(prev => ({ ...prev, [id]: '' }))
+    setCambioMensaje(prev => ({ ...prev, [id]: { text: '', ok: false } }))
+  }
+
+  const cambiarContrasena = async (id: string, emailU: string) => {
+    const nuevaPass = cambioPass[id]
+    if (!nuevaPass || nuevaPass.length < 6) {
+      setCambioMensaje(prev => ({ ...prev, [id]: { text: 'Mínimo 6 caracteres', ok: false } }))
+      return
+    }
+    setCambioLoading(prev => ({ ...prev, [id]: true }))
+    const res = await fetch('/api/cambiar-contrasena', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email: emailU, password: nuevaPass }),
+    })
+    const result = await res.json()
+    if (result.error) {
+      setCambioMensaje(prev => ({ ...prev, [id]: { text: 'Error al cambiar contraseña', ok: false } }))
+    } else {
+      setCambioMensaje(prev => ({ ...prev, [id]: { text: '✅ Contraseña actualizada', ok: true } }))
+      setCambioPass(prev => ({ ...prev, [id]: '' }))
+      setTimeout(() => {
+        setCambioVisible(prev => ({ ...prev, [id]: false }))
+        setCambioMensaje(prev => ({ ...prev, [id]: { text: '', ok: false } }))
+      }, 2000)
+    }
+    setCambioLoading(prev => ({ ...prev, [id]: false }))
+  }
+
   const cerrarSesion = async () => {
     await supabase.auth.signOut()
     router.push('/login')
@@ -73,7 +109,6 @@ export default function AdminPanel() {
 
   return (
     <div style={{ display: 'flex', minHeight: '100vh', fontFamily: 'system-ui, -apple-system, sans-serif' }}>
-      {/* SIDEBAR */}
       <aside style={{
         width: '220px', minHeight: '100vh', background: '#0F2244',
         display: 'flex', flexDirection: 'column', flexShrink: 0,
@@ -123,7 +158,6 @@ export default function AdminPanel() {
         </div>
       </aside>
 
-      {/* MAIN */}
       <main style={{ flex: 1, background: '#F5F6FA', padding: '28px', minHeight: '100vh' }}>
         <div style={{ marginBottom: '24px' }}>
           <h1 style={{ fontSize: '20px', fontWeight: '700', color: '#0F2244', margin: 0 }}>
@@ -134,7 +168,6 @@ export default function AdminPanel() {
           </p>
         </div>
 
-        {/* Stats de usuarios */}
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '12px', marginBottom: '24px' }}>
           {[
             { label: 'Vendedores', value: totalVendedores, icon: '🛒', color: '#1A56B0', bg: '#E8F0FE' },
@@ -163,11 +196,7 @@ export default function AdminPanel() {
         </div>
 
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1.4fr', gap: '20px', alignItems: 'start' }}>
-          {/* Formulario */}
-          <div style={{
-            background: '#fff', borderRadius: '12px', padding: '22px',
-            border: '0.5px solid #E0E3EC',
-          }}>
+          <div style={{ background: '#fff', borderRadius: '12px', padding: '22px', border: '0.5px solid #E0E3EC' }}>
             <h2 style={{ fontSize: '15px', fontWeight: '600', color: '#0F2244', marginBottom: '18px' }}>
               Crear nuevo usuario
             </h2>
@@ -211,9 +240,7 @@ export default function AdminPanel() {
                 }}>
                   Rol
                 </label>
-                <select
-                  value={rol}
-                  onChange={e => setRol(e.target.value)}
+                <select value={rol} onChange={e => setRol(e.target.value)}
                   style={{
                     width: '100%', border: '0.5px solid #E0E3EC', borderRadius: '8px',
                     padding: '10px 12px', fontSize: '13px', color: '#0F2244',
@@ -227,8 +254,7 @@ export default function AdminPanel() {
 
               {mensaje && (
                 <div style={{
-                  padding: '10px 12px', borderRadius: '8px', fontSize: '12px',
-                  marginBottom: '14px',
+                  padding: '10px 12px', borderRadius: '8px', fontSize: '12px', marginBottom: '14px',
                   background: mensaje.includes('Error') ? '#FEE2E2' : '#D4EDDA',
                   color: mensaje.includes('Error') ? '#991B1B' : '#1A6B35',
                   border: `0.5px solid ${mensaje.includes('Error') ? '#FCA5A5' : '#B8DFC8'}`,
@@ -237,25 +263,18 @@ export default function AdminPanel() {
                 </div>
               )}
 
-              <button
-                type="submit"
-                disabled={loading}
-                style={{
-                  width: '100%', padding: '11px',
-                  background: loading ? 'rgba(15,34,68,0.5)' : '#0F2244',
-                  color: '#fff', border: 'none', borderRadius: '8px',
-                  fontSize: '13px', fontWeight: '600', cursor: loading ? 'not-allowed' : 'pointer',
-                }}>
+              <button type="submit" disabled={loading} style={{
+                width: '100%', padding: '11px',
+                background: loading ? 'rgba(15,34,68,0.5)' : '#0F2244',
+                color: '#fff', border: 'none', borderRadius: '8px',
+                fontSize: '13px', fontWeight: '600', cursor: loading ? 'not-allowed' : 'pointer',
+              }}>
                 {loading ? 'Creando...' : '+ Crear usuario'}
               </button>
             </form>
           </div>
 
-          {/* Lista de usuarios */}
-          <div style={{
-            background: '#fff', borderRadius: '12px', padding: '22px',
-            border: '0.5px solid #E0E3EC',
-          }}>
+          <div style={{ background: '#fff', borderRadius: '12px', padding: '22px', border: '0.5px solid #E0E3EC' }}>
             <h2 style={{ fontSize: '15px', fontWeight: '600', color: '#0F2244', marginBottom: '18px' }}>
               Usuarios registrados
               <span style={{
@@ -272,52 +291,147 @@ export default function AdminPanel() {
                 No hay usuarios registrados aún.
               </p>
             ) : (
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
                 {usuarios.map(u => {
                   const rc = rolColors[u.rol] || { bg: '#f0f0f0', color: '#555' }
+                  const passVisible = cambioVisible[u.id]
+                  const msg = cambioMensaje[u.id]
+
                   return (
                     <div key={u.id} style={{
-                      display: 'flex', alignItems: 'center', gap: '12px',
-                      border: '0.5px solid #E0E3EC', borderRadius: '8px',
-                      padding: '12px 14px',
+                      border: `0.5px solid ${passVisible ? '#D4A017' : '#E0E3EC'}`,
+                      borderRadius: '10px', overflow: 'hidden',
+                      transition: 'border-color 0.2s',
                     }}>
-                      {/* Avatar */}
                       <div style={{
-                        width: '36px', height: '36px', borderRadius: '50%',
-                        background: rc.bg, display: 'flex', alignItems: 'center',
-                        justifyContent: 'center', fontSize: '15px', flexShrink: 0,
+                        display: 'flex', alignItems: 'center', gap: '12px',
+                        padding: '12px 14px',
+                        background: passVisible ? '#FFFBF0' : '#fff',
+                        transition: 'background 0.2s',
                       }}>
-                        {rolIconos[u.rol] || '👤'}
-                      </div>
-                      <div style={{ flex: 1, minWidth: 0 }}>
-                        <div style={{ fontSize: '13px', fontWeight: '600', color: '#0F2244' }}>
-                          {u.nombre}
+                        <div style={{
+                          width: '36px', height: '36px', borderRadius: '50%',
+                          background: rc.bg, display: 'flex', alignItems: 'center',
+                          justifyContent: 'center', fontSize: '15px', flexShrink: 0,
+                        }}>
+                          {rolIconos[u.rol] || '👤'}
                         </div>
-                        <div style={{ fontSize: '11px', color: '#999', marginTop: '1px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                          {u.email}
+
+                        <div style={{ flex: 1, minWidth: 0 }}>
+                          <div style={{ fontSize: '13px', fontWeight: '600', color: '#0F2244' }}>{u.nombre}</div>
+                          <div style={{ fontSize: '11px', color: '#999', marginTop: '1px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                            {u.email}
+                          </div>
                         </div>
+
+                        <span style={{
+                          fontSize: '10px', fontWeight: '500',
+                          background: rc.bg, color: rc.color,
+                          padding: '3px 8px', borderRadius: '10px',
+                          textTransform: 'capitalize', flexShrink: 0,
+                        }}>
+                          {u.rol}
+                        </span>
+
+                        <button
+                          onClick={() => toggleCambioPass(u.id)}
+                          title="Cambiar contraseña"
+                          style={{
+                            background: passVisible ? '#D4A017' : '#F5F6FA',
+                            border: `0.5px solid ${passVisible ? '#D4A017' : '#E0E3EC'}`,
+                            borderRadius: '6px', cursor: 'pointer',
+                            color: passVisible ? '#0F2244' : '#888',
+                            fontSize: '14px', padding: '5px 8px',
+                            flexShrink: 0, transition: 'all 0.15s',
+                          }}
+                          onMouseOver={e => { if (!passVisible) { e.currentTarget.style.background = '#FEF3CD'; e.currentTarget.style.borderColor = '#D4A017'; e.currentTarget.style.color = '#92610A' }}}
+                          onMouseOut={e => { if (!passVisible) { e.currentTarget.style.background = '#F5F6FA'; e.currentTarget.style.borderColor = '#E0E3EC'; e.currentTarget.style.color = '#888' }}}
+                        >
+                          🔑
+                        </button>
+
+                        <button
+                          onClick={() => eliminarUsuario(u.id, u.email)}
+                          title="Eliminar usuario"
+                          style={{
+                            background: 'none', border: 'none', cursor: 'pointer',
+                            color: '#ddd', fontSize: '14px', padding: '4px',
+                            flexShrink: 0, transition: 'color 0.15s',
+                          }}
+                          onMouseOver={e => (e.currentTarget.style.color = '#E53E3E')}
+                          onMouseOut={e => (e.currentTarget.style.color = '#ddd')}
+                        >
+                          🗑
+                        </button>
                       </div>
-                      <span style={{
-                        fontSize: '10px', fontWeight: '500',
-                        background: rc.bg, color: rc.color,
-                        padding: '3px 8px', borderRadius: '10px',
-                        textTransform: 'capitalize', flexShrink: 0,
-                      }}>
-                        {u.rol}
-                      </span>
-                      <button
-                        onClick={() => eliminarUsuario(u.id, u.email)}
-                        style={{
-                          background: 'none', border: 'none', cursor: 'pointer',
-                          color: '#ddd', fontSize: '14px', padding: '4px',
-                          flexShrink: 0, transition: 'color 0.15s',
-                        }}
-                        onMouseOver={e => (e.currentTarget.style.color = '#E53E3E')}
-                        onMouseOut={e => (e.currentTarget.style.color = '#ddd')}
-                        title="Eliminar usuario"
-                      >
-                        🗑
-                      </button>
+
+                      {passVisible && (
+                        <div style={{
+                          padding: '14px 16px',
+                          background: '#FFFDF5',
+                          borderTop: '1px dashed #F0D080',
+                          display: 'flex', alignItems: 'center', gap: '10px',
+                        }}>
+                          <div style={{ flex: 1 }}>
+                            <label style={{
+                              display: 'block', fontSize: '10px', fontWeight: '600',
+                              color: '#92610A', marginBottom: '6px',
+                              textTransform: 'uppercase', letterSpacing: '0.06em',
+                            }}>
+                              🔑 Nueva contraseña para {u.nombre.split(' ')[0]}
+                            </label>
+                            <input
+                              type="password"
+                              value={cambioPass[u.id] || ''}
+                              onChange={e => setCambioPass(prev => ({ ...prev, [u.id]: e.target.value }))}
+                              placeholder="Mínimo 6 caracteres"
+                              autoFocus
+                              style={{
+                                width: '100%', boxSizing: 'border-box',
+                                border: '1px solid #F0D080', borderRadius: '7px',
+                                padding: '9px 12px', fontSize: '13px', color: '#0F2244',
+                                outline: 'none', background: '#fff',
+                              }}
+                              onFocus={e => e.target.style.borderColor = '#D4A017'}
+                              onBlur={e => e.target.style.borderColor = '#F0D080'}
+                              onKeyDown={e => { if (e.key === 'Enter') cambiarContrasena(u.id, u.email) }}
+                            />
+                            {msg?.text && (
+                              <div style={{
+                                marginTop: '6px', fontSize: '11px',
+                                color: msg.ok ? '#1A6B35' : '#991B1B',
+                                fontWeight: '500',
+                              }}>
+                                {msg.text}
+                              </div>
+                            )}
+                          </div>
+
+                          <div style={{ display: 'flex', gap: '8px', flexShrink: 0, alignSelf: 'flex-end', paddingBottom: '2px' }}>
+                            <button
+                              onClick={() => cambiarContrasena(u.id, u.email)}
+                              disabled={cambioLoading[u.id]}
+                              style={{
+                                background: '#D4A017', color: '#0F2244',
+                                border: 'none', borderRadius: '7px',
+                                padding: '9px 16px', fontSize: '12px',
+                                fontWeight: '700', cursor: cambioLoading[u.id] ? 'not-allowed' : 'pointer',
+                                opacity: cambioLoading[u.id] ? 0.6 : 1,
+                              }}>
+                              {cambioLoading[u.id] ? 'Guardando...' : 'Guardar'}
+                            </button>
+                            <button
+                              onClick={() => toggleCambioPass(u.id)}
+                              style={{
+                                background: '#F5F6FA', color: '#888',
+                                border: '0.5px solid #E0E3EC', borderRadius: '7px',
+                                padding: '9px 12px', fontSize: '12px', cursor: 'pointer',
+                              }}>
+                              Cancelar
+                            </button>
+                          </div>
+                        </div>
+                      )}
                     </div>
                   )
                 })}
