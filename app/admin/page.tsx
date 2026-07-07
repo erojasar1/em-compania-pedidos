@@ -16,9 +16,18 @@ export default function AdminPanel() {
   const [cambioVisible, setCambioVisible] = useState<Record<string, boolean>>({})
   const [cambioLoading, setCambioLoading] = useState<Record<string, boolean>>({})
   const [cambioMensaje, setCambioMensaje] = useState<Record<string, { text: string; ok: boolean }>>({})
+  const [vistaActiva, setVistaActiva] = useState<'usuarios' | 'actividad'>('usuarios')
+  const [pedidos, setPedidos] = useState<any[]>([])
+  const [cotizaciones, setCotizaciones] = useState<any[]>([])
+  const [filtroVendedorActividad, setFiltroVendedorActividad] = useState('')
+  const [tabActividad, setTabActividad] = useState<'pedidos' | 'cotizaciones'>('pedidos')
   const router = useRouter()
 
   useEffect(() => { cargarUsuarios() }, [])
+
+  useEffect(() => {
+    if (vistaActiva === 'actividad') cargarActividad()
+  }, [vistaActiva])
 
   const cargarUsuarios = async () => {
     const { data } = await supabase
@@ -26,6 +35,21 @@ export default function AdminPanel() {
       .select('*')
       .order('creado_en', { ascending: false })
     if (data) setUsuarios(data)
+  }
+
+  const cargarActividad = async () => {
+    const { data: pedidosData } = await supabase
+      .from('pedidos')
+      .select('*, usuarios(nombre, email)')
+      .order('creado_en', { ascending: false })
+    if (pedidosData) setPedidos(pedidosData)
+
+    const { data: cotizacionesData } = await supabase
+      .from('cotizaciones')
+      .select('*, usuarios(nombre, email)')
+      .in('estado', ['borrador', 'enviada'])
+      .order('creado_en', { ascending: false })
+    if (cotizacionesData) setCotizaciones(cotizacionesData)
   }
 
   const crearUsuario = async (e: React.FormEvent) => {
@@ -106,6 +130,23 @@ export default function AdminPanel() {
   const totalVendedores = usuarios.filter(u => u.rol === 'vendedor').length
   const totalContables = usuarios.filter(u => u.rol === 'contable').length
   const totalAdmins = usuarios.filter(u => u.rol === 'administrador').length
+  const vendedores = usuarios.filter(u => u.rol === 'vendedor')
+
+  const pedidosFiltrados = filtroVendedorActividad
+    ? pedidos.filter(p => p.vendedor_id === filtroVendedorActividad)
+    : pedidos
+
+  const cotizacionesFiltradas = filtroVendedorActividad
+    ? cotizaciones.filter(c => c.vendedor_id === filtroVendedorActividad)
+    : cotizaciones
+
+  const formatFecha = (fecha: string) =>
+    new Date(fecha).toLocaleString('es-CO', {
+      day: '2-digit', month: '2-digit', year: 'numeric',
+      hour: '2-digit', minute: '2-digit',
+    })
+
+  const formatMoney = (n: number) => '$' + (n || 0).toLocaleString('es-CO')
 
   return (
     <div style={{ display: 'flex', minHeight: '100vh', fontFamily: 'system-ui, -apple-system, sans-serif' }}>
@@ -125,23 +166,20 @@ export default function AdminPanel() {
 
         <nav style={{ padding: '16px 10px', flex: 1 }}>
           {[
-            { icon: '👥', label: 'Usuarios', active: true },
-            { icon: '📊', label: 'Actividad', active: false },
+            { icon: '👥', label: 'Usuarios', vista: 'usuarios' as const },
+            { icon: '📊', label: 'Actividad', vista: 'actividad' as const },
           ].map(item => (
-            <div key={item.label} style={{
+            <div key={item.vista} onClick={() => setVistaActiva(item.vista)} style={{
               display: 'flex', alignItems: 'center', gap: '10px',
               padding: '9px 12px', borderRadius: '8px', marginBottom: '2px',
-              background: item.active ? 'rgba(255,255,255,0.09)' : 'transparent',
-              color: item.active ? '#fff' : 'rgba(255,255,255,0.4)',
+              background: vistaActiva === item.vista ? 'rgba(255,255,255,0.09)' : 'transparent',
+              color: vistaActiva === item.vista ? '#fff' : 'rgba(255,255,255,0.4)',
               fontSize: '13px', cursor: 'pointer',
             }}>
               <span style={{ fontSize: '14px' }}>{item.icon}</span>
               {item.label}
-              {item.active && (
-                <span style={{
-                  marginLeft: 'auto', width: '7px', height: '7px',
-                  borderRadius: '50%', background: '#D4A017',
-                }} />
+              {vistaActiva === item.vista && (
+                <span style={{ marginLeft: 'auto', width: '7px', height: '7px', borderRadius: '50%', background: '#D4A017' }} />
               )}
             </div>
           ))}
@@ -152,293 +190,268 @@ export default function AdminPanel() {
             display: 'flex', alignItems: 'center', gap: '8px',
             background: 'none', border: 'none', cursor: 'pointer',
             color: 'rgba(255,255,255,0.3)', fontSize: '12px', padding: '8px 12px', width: '100%',
-          }}>
-            🚪 Cerrar sesión
-          </button>
+          }}>🚪 Cerrar sesión</button>
         </div>
       </aside>
 
       <main style={{ flex: 1, background: '#F5F6FA', padding: '28px', minHeight: '100vh' }}>
-        <div style={{ marginBottom: '24px' }}>
-          <h1 style={{ fontSize: '20px', fontWeight: '700', color: '#0F2244', margin: 0 }}>
-            Gestión de usuarios
-          </h1>
-          <p style={{ fontSize: '12px', color: '#999', marginTop: '4px' }}>
-            Control de acceso por roles al sistema
-          </p>
-        </div>
 
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '12px', marginBottom: '24px' }}>
-          {[
-            { label: 'Vendedores', value: totalVendedores, icon: '🛒', color: '#1A56B0', bg: '#E8F0FE' },
-            { label: 'Contables', value: totalContables, icon: '🧾', color: '#92610A', bg: '#FEF3CD' },
-            { label: 'Administradores', value: totalAdmins, icon: '⚙️', color: '#6B21A8', bg: '#F3E8FF' },
-          ].map(stat => (
-            <div key={stat.label} style={{
-              background: '#fff', borderRadius: '10px', padding: '14px 16px',
-              border: '0.5px solid #E0E3EC',
-            }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-                <div>
-                  <div style={{ fontSize: '11px', color: '#999', marginBottom: '6px' }}>{stat.label}</div>
-                  <div style={{ fontSize: '26px', fontWeight: '700', color: '#0F2244' }}>{stat.value}</div>
-                </div>
-                <div style={{
-                  width: '36px', height: '36px', borderRadius: '8px',
-                  background: stat.bg, display: 'flex', alignItems: 'center',
-                  justifyContent: 'center', fontSize: '16px',
-                }}>
-                  {stat.icon}
-                </div>
-              </div>
+        {/* ===== VISTA USUARIOS ===== */}
+        {vistaActiva === 'usuarios' && (
+          <>
+            <div style={{ marginBottom: '24px' }}>
+              <h1 style={{ fontSize: '20px', fontWeight: '700', color: '#0F2244', margin: 0 }}>Gestión de usuarios</h1>
+              <p style={{ fontSize: '12px', color: '#999', marginTop: '4px' }}>Control de acceso por roles al sistema</p>
             </div>
-          ))}
-        </div>
 
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1.4fr', gap: '20px', alignItems: 'start' }}>
-          <div style={{ background: '#fff', borderRadius: '12px', padding: '22px', border: '0.5px solid #E0E3EC' }}>
-            <h2 style={{ fontSize: '15px', fontWeight: '600', color: '#0F2244', marginBottom: '18px' }}>
-              Crear nuevo usuario
-            </h2>
-            <form onSubmit={crearUsuario}>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '12px', marginBottom: '24px' }}>
               {[
-                { label: 'Nombre completo', value: nombre, set: setNombre, type: 'text', placeholder: 'Ej. Carlos Martínez' },
-                { label: 'Correo electrónico', value: email, set: setEmail, type: 'email', placeholder: 'carlos@emcompania.com' },
-                { label: 'Contraseña', value: password, set: setPassword, type: 'password', placeholder: '••••••••' },
-              ].map(field => (
-                <div key={field.label} style={{ marginBottom: '14px' }}>
-                  <label style={{
-                    display: 'block', fontSize: '11px', fontWeight: '500',
-                    color: '#666', marginBottom: '6px',
-                    textTransform: 'uppercase', letterSpacing: '0.05em',
-                  }}>
-                    {field.label}
-                  </label>
-                  <input
-                    type={field.type}
-                    value={field.value}
-                    onChange={e => field.set(e.target.value)}
-                    placeholder={field.placeholder}
-                    required
-                    style={{
-                      width: '100%', boxSizing: 'border-box',
-                      border: '0.5px solid #E0E3EC', borderRadius: '8px',
-                      padding: '10px 12px', fontSize: '13px', color: '#0F2244',
-                      outline: 'none', background: '#FAFAFA',
-                    }}
-                    onFocus={e => e.target.style.borderColor = '#D4A017'}
-                    onBlur={e => e.target.style.borderColor = '#E0E3EC'}
-                  />
+                { label: 'Vendedores', value: totalVendedores, icon: '🛒', color: '#1A56B0', bg: '#E8F0FE' },
+                { label: 'Contables', value: totalContables, icon: '🧾', color: '#92610A', bg: '#FEF3CD' },
+                { label: 'Administradores', value: totalAdmins, icon: '⚙️', color: '#6B21A8', bg: '#F3E8FF' },
+              ].map(stat => (
+                <div key={stat.label} style={{ background: '#fff', borderRadius: '10px', padding: '14px 16px', border: '0.5px solid #E0E3EC' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+                    <div>
+                      <div style={{ fontSize: '11px', color: '#999', marginBottom: '6px' }}>{stat.label}</div>
+                      <div style={{ fontSize: '26px', fontWeight: '700', color: '#0F2244' }}>{stat.value}</div>
+                    </div>
+                    <div style={{ width: '36px', height: '36px', borderRadius: '8px', background: stat.bg, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '16px' }}>
+                      {stat.icon}
+                    </div>
+                  </div>
                 </div>
               ))}
+            </div>
 
-              <div style={{ marginBottom: '18px' }}>
-                <label style={{
-                  display: 'block', fontSize: '11px', fontWeight: '500',
-                  color: '#666', marginBottom: '6px',
-                  textTransform: 'uppercase', letterSpacing: '0.05em',
-                }}>
-                  Rol
-                </label>
-                <select value={rol} onChange={e => setRol(e.target.value)}
-                  style={{
-                    width: '100%', border: '0.5px solid #E0E3EC', borderRadius: '8px',
-                    padding: '10px 12px', fontSize: '13px', color: '#0F2244',
-                    outline: 'none', background: '#FAFAFA',
-                  }}>
-                  <option value="vendedor">🛒 Vendedor</option>
-                  <option value="contable">🧾 Contable</option>
-                  <option value="administrador">⚙️ Administrador</option>
-                </select>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1.4fr', gap: '20px', alignItems: 'start' }}>
+              <div style={{ background: '#fff', borderRadius: '12px', padding: '22px', border: '0.5px solid #E0E3EC' }}>
+                <h2 style={{ fontSize: '15px', fontWeight: '600', color: '#0F2244', marginBottom: '18px' }}>Crear nuevo usuario</h2>
+                <form onSubmit={crearUsuario}>
+                  {[
+                    { label: 'Nombre completo', value: nombre, set: setNombre, type: 'text', placeholder: 'Ej. Carlos Martínez' },
+                    { label: 'Correo electrónico', value: email, set: setEmail, type: 'email', placeholder: 'carlos@emcompania.com' },
+                    { label: 'Contraseña', value: password, set: setPassword, type: 'password', placeholder: '••••••••' },
+                  ].map(field => (
+                    <div key={field.label} style={{ marginBottom: '14px' }}>
+                      <label style={{ display: 'block', fontSize: '11px', fontWeight: '500', color: '#666', marginBottom: '6px', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                        {field.label}
+                      </label>
+                      <input
+                        type={field.type} value={field.value}
+                        onChange={e => field.set(e.target.value)}
+                        placeholder={field.placeholder} required
+                        style={{ width: '100%', boxSizing: 'border-box', border: '0.5px solid #E0E3EC', borderRadius: '8px', padding: '10px 12px', fontSize: '13px', color: '#0F2244', outline: 'none', background: '#FAFAFA' }}
+                        onFocus={e => e.target.style.borderColor = '#D4A017'}
+                        onBlur={e => e.target.style.borderColor = '#E0E3EC'}
+                      />
+                    </div>
+                  ))}
+                  <div style={{ marginBottom: '18px' }}>
+                    <label style={{ display: 'block', fontSize: '11px', fontWeight: '500', color: '#666', marginBottom: '6px', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Rol</label>
+                    <select value={rol} onChange={e => setRol(e.target.value)}
+                      style={{ width: '100%', border: '0.5px solid #E0E3EC', borderRadius: '8px', padding: '10px 12px', fontSize: '13px', color: '#0F2244', outline: 'none', background: '#FAFAFA' }}>
+                      <option value="vendedor">🛒 Vendedor</option>
+                      <option value="contable">🧾 Contable</option>
+                      <option value="administrador">⚙️ Administrador</option>
+                    </select>
+                  </div>
+                  {mensaje && (
+                    <div style={{ padding: '10px 12px', borderRadius: '8px', fontSize: '12px', marginBottom: '14px', background: mensaje.includes('Error') ? '#FEE2E2' : '#D4EDDA', color: mensaje.includes('Error') ? '#991B1B' : '#1A6B35', border: `0.5px solid ${mensaje.includes('Error') ? '#FCA5A5' : '#B8DFC8'}` }}>
+                      {mensaje.includes('Error') ? '⚠ ' : '✅ '}{mensaje}
+                    </div>
+                  )}
+                  <button type="submit" disabled={loading} style={{ width: '100%', padding: '11px', background: loading ? 'rgba(15,34,68,0.5)' : '#0F2244', color: '#fff', border: 'none', borderRadius: '8px', fontSize: '13px', fontWeight: '600', cursor: loading ? 'not-allowed' : 'pointer' }}>
+                    {loading ? 'Creando...' : '+ Crear usuario'}
+                  </button>
+                </form>
               </div>
 
-              {mensaje && (
-                <div style={{
-                  padding: '10px 12px', borderRadius: '8px', fontSize: '12px', marginBottom: '14px',
-                  background: mensaje.includes('Error') ? '#FEE2E2' : '#D4EDDA',
-                  color: mensaje.includes('Error') ? '#991B1B' : '#1A6B35',
-                  border: `0.5px solid ${mensaje.includes('Error') ? '#FCA5A5' : '#B8DFC8'}`,
-                }}>
-                  {mensaje.includes('Error') ? '⚠ ' : '✅ '}{mensaje}
-                </div>
-              )}
-
-              <button type="submit" disabled={loading} style={{
-                width: '100%', padding: '11px',
-                background: loading ? 'rgba(15,34,68,0.5)' : '#0F2244',
-                color: '#fff', border: 'none', borderRadius: '8px',
-                fontSize: '13px', fontWeight: '600', cursor: loading ? 'not-allowed' : 'pointer',
-              }}>
-                {loading ? 'Creando...' : '+ Crear usuario'}
-              </button>
-            </form>
-          </div>
-
-          <div style={{ background: '#fff', borderRadius: '12px', padding: '22px', border: '0.5px solid #E0E3EC' }}>
-            <h2 style={{ fontSize: '15px', fontWeight: '600', color: '#0F2244', marginBottom: '18px' }}>
-              Usuarios registrados
-              <span style={{
-                marginLeft: '8px', fontSize: '11px', fontWeight: '500',
-                background: '#EEF0F8', color: '#0F2244',
-                padding: '2px 8px', borderRadius: '10px',
-              }}>
-                {usuarios.length}
-              </span>
-            </h2>
-
-            {usuarios.length === 0 ? (
-              <p style={{ fontSize: '13px', color: '#bbb', textAlign: 'center', padding: '24px 0' }}>
-                No hay usuarios registrados aún.
-              </p>
-            ) : (
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-                {usuarios.map(u => {
-                  const rc = rolColors[u.rol] || { bg: '#f0f0f0', color: '#555' }
-                  const passVisible = cambioVisible[u.id]
-                  const msg = cambioMensaje[u.id]
-
-                  return (
-                    <div key={u.id} style={{
-                      border: `0.5px solid ${passVisible ? '#D4A017' : '#E0E3EC'}`,
-                      borderRadius: '10px', overflow: 'hidden',
-                      transition: 'border-color 0.2s',
-                    }}>
-                      <div style={{
-                        display: 'flex', alignItems: 'center', gap: '12px',
-                        padding: '12px 14px',
-                        background: passVisible ? '#FFFBF0' : '#fff',
-                        transition: 'background 0.2s',
-                      }}>
-                        <div style={{
-                          width: '36px', height: '36px', borderRadius: '50%',
-                          background: rc.bg, display: 'flex', alignItems: 'center',
-                          justifyContent: 'center', fontSize: '15px', flexShrink: 0,
-                        }}>
-                          {rolIconos[u.rol] || '👤'}
-                        </div>
-
-                        <div style={{ flex: 1, minWidth: 0 }}>
-                          <div style={{ fontSize: '13px', fontWeight: '600', color: '#0F2244' }}>{u.nombre}</div>
-                          <div style={{ fontSize: '11px', color: '#999', marginTop: '1px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                            {u.email}
+              <div style={{ background: '#fff', borderRadius: '12px', padding: '22px', border: '0.5px solid #E0E3EC' }}>
+                <h2 style={{ fontSize: '15px', fontWeight: '600', color: '#0F2244', marginBottom: '18px' }}>
+                  Usuarios registrados
+                  <span style={{ marginLeft: '8px', fontSize: '11px', fontWeight: '500', background: '#EEF0F8', color: '#0F2244', padding: '2px 8px', borderRadius: '10px' }}>{usuarios.length}</span>
+                </h2>
+                {usuarios.length === 0 ? (
+                  <p style={{ fontSize: '13px', color: '#bbb', textAlign: 'center', padding: '24px 0' }}>No hay usuarios registrados aún.</p>
+                ) : (
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                    {usuarios.map(u => {
+                      const rc = rolColors[u.rol] || { bg: '#f0f0f0', color: '#555' }
+                      const passVisible = cambioVisible[u.id]
+                      const msg = cambioMensaje[u.id]
+                      return (
+                        <div key={u.id} style={{ border: `0.5px solid ${passVisible ? '#D4A017' : '#E0E3EC'}`, borderRadius: '10px', overflow: 'hidden', transition: 'border-color 0.2s' }}>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '12px', padding: '12px 14px', background: passVisible ? '#FFFBF0' : '#fff', transition: 'background 0.2s' }}>
+                            <div style={{ width: '36px', height: '36px', borderRadius: '50%', background: rc.bg, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '15px', flexShrink: 0 }}>
+                              {rolIconos[u.rol] || '👤'}
+                            </div>
+                            <div style={{ flex: 1, minWidth: 0 }}>
+                              <div style={{ fontSize: '13px', fontWeight: '600', color: '#0F2244' }}>{u.nombre}</div>
+                              <div style={{ fontSize: '11px', color: '#999', marginTop: '1px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{u.email}</div>
+                            </div>
+                            <span style={{ fontSize: '10px', fontWeight: '500', background: rc.bg, color: rc.color, padding: '3px 8px', borderRadius: '10px', textTransform: 'capitalize', flexShrink: 0 }}>{u.rol}</span>
+                            <button onClick={() => toggleCambioPass(u.id)} title="Cambiar contraseña"
+                              style={{ background: passVisible ? '#D4A017' : '#F5F6FA', border: `0.5px solid ${passVisible ? '#D4A017' : '#E0E3EC'}`, borderRadius: '6px', cursor: 'pointer', color: passVisible ? '#0F2244' : '#888', fontSize: '14px', padding: '5px 8px', flexShrink: 0, transition: 'all 0.15s' }}
+                              onMouseOver={e => { if (!passVisible) { e.currentTarget.style.background = '#FEF3CD'; e.currentTarget.style.borderColor = '#D4A017'; e.currentTarget.style.color = '#92610A' }}}
+                              onMouseOut={e => { if (!passVisible) { e.currentTarget.style.background = '#F5F6FA'; e.currentTarget.style.borderColor = '#E0E3EC'; e.currentTarget.style.color = '#888' }}}>
+                              🔑
+                            </button>
+                            <button onClick={() => eliminarUsuario(u.id, u.email)} title="Eliminar usuario"
+                              style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#ddd', fontSize: '14px', padding: '4px', flexShrink: 0, transition: 'color 0.15s' }}
+                              onMouseOver={e => (e.currentTarget.style.color = '#E53E3E')}
+                              onMouseOut={e => (e.currentTarget.style.color = '#ddd')}>
+                              🗑
+                            </button>
                           </div>
-                        </div>
-
-                        <span style={{
-                          fontSize: '10px', fontWeight: '500',
-                          background: rc.bg, color: rc.color,
-                          padding: '3px 8px', borderRadius: '10px',
-                          textTransform: 'capitalize', flexShrink: 0,
-                        }}>
-                          {u.rol}
-                        </span>
-
-                        <button
-                          onClick={() => toggleCambioPass(u.id)}
-                          title="Cambiar contraseña"
-                          style={{
-                            background: passVisible ? '#D4A017' : '#F5F6FA',
-                            border: `0.5px solid ${passVisible ? '#D4A017' : '#E0E3EC'}`,
-                            borderRadius: '6px', cursor: 'pointer',
-                            color: passVisible ? '#0F2244' : '#888',
-                            fontSize: '14px', padding: '5px 8px',
-                            flexShrink: 0, transition: 'all 0.15s',
-                          }}
-                          onMouseOver={e => { if (!passVisible) { e.currentTarget.style.background = '#FEF3CD'; e.currentTarget.style.borderColor = '#D4A017'; e.currentTarget.style.color = '#92610A' }}}
-                          onMouseOut={e => { if (!passVisible) { e.currentTarget.style.background = '#F5F6FA'; e.currentTarget.style.borderColor = '#E0E3EC'; e.currentTarget.style.color = '#888' }}}
-                        >
-                          🔑
-                        </button>
-
-                        <button
-                          onClick={() => eliminarUsuario(u.id, u.email)}
-                          title="Eliminar usuario"
-                          style={{
-                            background: 'none', border: 'none', cursor: 'pointer',
-                            color: '#ddd', fontSize: '14px', padding: '4px',
-                            flexShrink: 0, transition: 'color 0.15s',
-                          }}
-                          onMouseOver={e => (e.currentTarget.style.color = '#E53E3E')}
-                          onMouseOut={e => (e.currentTarget.style.color = '#ddd')}
-                        >
-                          🗑
-                        </button>
-                      </div>
-
-                      {passVisible && (
-                        <div style={{
-                          padding: '14px 16px',
-                          background: '#FFFDF5',
-                          borderTop: '1px dashed #F0D080',
-                          display: 'flex', alignItems: 'center', gap: '10px',
-                        }}>
-                          <div style={{ flex: 1 }}>
-                            <label style={{
-                              display: 'block', fontSize: '10px', fontWeight: '600',
-                              color: '#92610A', marginBottom: '6px',
-                              textTransform: 'uppercase', letterSpacing: '0.06em',
-                            }}>
-                              🔑 Nueva contraseña para {u.nombre.split(' ')[0]}
-                            </label>
-                            <input
-                              type="password"
-                              value={cambioPass[u.id] || ''}
-                              onChange={e => setCambioPass(prev => ({ ...prev, [u.id]: e.target.value }))}
-                              placeholder="Mínimo 6 caracteres"
-                              autoFocus
-                              style={{
-                                width: '100%', boxSizing: 'border-box',
-                                border: '1px solid #F0D080', borderRadius: '7px',
-                                padding: '9px 12px', fontSize: '13px', color: '#0F2244',
-                                outline: 'none', background: '#fff',
-                              }}
-                              onFocus={e => e.target.style.borderColor = '#D4A017'}
-                              onBlur={e => e.target.style.borderColor = '#F0D080'}
-                              onKeyDown={e => { if (e.key === 'Enter') cambiarContrasena(u.id, u.email) }}
-                            />
-                            {msg?.text && (
-                              <div style={{
-                                marginTop: '6px', fontSize: '11px',
-                                color: msg.ok ? '#1A6B35' : '#991B1B',
-                                fontWeight: '500',
-                              }}>
-                                {msg.text}
+                          {passVisible && (
+                            <div style={{ padding: '14px 16px', background: '#FFFDF5', borderTop: '1px dashed #F0D080', display: 'flex', alignItems: 'center', gap: '10px' }}>
+                              <div style={{ flex: 1 }}>
+                                <label style={{ display: 'block', fontSize: '10px', fontWeight: '600', color: '#92610A', marginBottom: '6px', textTransform: 'uppercase', letterSpacing: '0.06em' }}>
+                                  🔑 Nueva contraseña para {u.nombre.split(' ')[0]}
+                                </label>
+                                <input type="password" value={cambioPass[u.id] || ''}
+                                  onChange={e => setCambioPass(prev => ({ ...prev, [u.id]: e.target.value }))}
+                                  placeholder="Mínimo 6 caracteres" autoFocus
+                                  style={{ width: '100%', boxSizing: 'border-box', border: '1px solid #F0D080', borderRadius: '7px', padding: '9px 12px', fontSize: '13px', color: '#0F2244', outline: 'none', background: '#fff' }}
+                                  onFocus={e => e.target.style.borderColor = '#D4A017'}
+                                  onBlur={e => e.target.style.borderColor = '#F0D080'}
+                                  onKeyDown={e => { if (e.key === 'Enter') cambiarContrasena(u.id, u.email) }}
+                                />
+                                {msg?.text && (
+                                  <div style={{ marginTop: '6px', fontSize: '11px', color: msg.ok ? '#1A6B35' : '#991B1B', fontWeight: '500' }}>{msg.text}</div>
+                                )}
                               </div>
-                            )}
-                          </div>
-
-                          <div style={{ display: 'flex', gap: '8px', flexShrink: 0, alignSelf: 'flex-end', paddingBottom: '2px' }}>
-                            <button
-                              onClick={() => cambiarContrasena(u.id, u.email)}
-                              disabled={cambioLoading[u.id]}
-                              style={{
-                                background: '#D4A017', color: '#0F2244',
-                                border: 'none', borderRadius: '7px',
-                                padding: '9px 16px', fontSize: '12px',
-                                fontWeight: '700', cursor: cambioLoading[u.id] ? 'not-allowed' : 'pointer',
-                                opacity: cambioLoading[u.id] ? 0.6 : 1,
-                              }}>
-                              {cambioLoading[u.id] ? 'Guardando...' : 'Guardar'}
-                            </button>
-                            <button
-                              onClick={() => toggleCambioPass(u.id)}
-                              style={{
-                                background: '#F5F6FA', color: '#888',
-                                border: '0.5px solid #E0E3EC', borderRadius: '7px',
-                                padding: '9px 12px', fontSize: '12px', cursor: 'pointer',
-                              }}>
-                              Cancelar
-                            </button>
-                          </div>
+                              <div style={{ display: 'flex', gap: '8px', flexShrink: 0, alignSelf: 'flex-end', paddingBottom: '2px' }}>
+                                <button onClick={() => cambiarContrasena(u.id, u.email)} disabled={cambioLoading[u.id]}
+                                  style={{ background: '#D4A017', color: '#0F2244', border: 'none', borderRadius: '7px', padding: '9px 16px', fontSize: '12px', fontWeight: '700', cursor: cambioLoading[u.id] ? 'not-allowed' : 'pointer', opacity: cambioLoading[u.id] ? 0.6 : 1 }}>
+                                  {cambioLoading[u.id] ? 'Guardando...' : 'Guardar'}
+                                </button>
+                                <button onClick={() => toggleCambioPass(u.id)}
+                                  style={{ background: '#F5F6FA', color: '#888', border: '0.5px solid #E0E3EC', borderRadius: '7px', padding: '9px 12px', fontSize: '12px', cursor: 'pointer' }}>
+                                  Cancelar
+                                </button>
+                              </div>
+                            </div>
+                          )}
                         </div>
-                      )}
+                      )
+                    })}
+                  </div>
+                )}
+              </div>
+            </div>
+          </>
+        )}
+
+        {/* ===== VISTA ACTIVIDAD ===== */}
+        {vistaActiva === 'actividad' && (
+          <>
+            <div style={{ marginBottom: '24px' }}>
+              <h1 style={{ fontSize: '20px', fontWeight: '700', color: '#0F2244', margin: 0 }}>Actividad del equipo</h1>
+              <p style={{ fontSize: '12px', color: '#999', marginTop: '4px' }}>Pedidos y cotizaciones de todos los vendedores</p>
+            </div>
+
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '12px', marginBottom: '24px' }}>
+              {[
+                { label: 'Total pedidos', value: pedidos.length, color: '#0F2244' },
+                { label: 'Pedidos pendientes', value: pedidos.filter(p => p.estado === 'pendiente').length, color: '#92610A' },
+                { label: 'Pedidos facturados', value: pedidos.filter(p => p.estado === 'facturado').length, color: '#1A6B35' },
+                { label: 'Cotizaciones sin convertir', value: cotizaciones.length, color: '#6B21A8' },
+              ].map(stat => (
+                <div key={stat.label} style={{ background: '#fff', borderRadius: '10px', padding: '14px 16px', border: '0.5px solid #E0E3EC' }}>
+                  <div style={{ fontSize: '11px', color: '#999', marginBottom: '6px' }}>{stat.label}</div>
+                  <div style={{ fontSize: '26px', fontWeight: '700', color: stat.color }}>{stat.value}</div>
+                </div>
+              ))}
+            </div>
+
+            <div style={{ background: '#fff', borderRadius: '10px', padding: '14px 16px', border: '0.5px solid #E0E3EC', marginBottom: '16px', display: 'flex', gap: '12px', alignItems: 'center', flexWrap: 'wrap' }}>
+              <div style={{ display: 'flex', gap: '6px' }}>
+                {[
+                  { label: '📦 Pedidos', tab: 'pedidos' as const },
+                  { label: '📋 Cotizaciones sin convertir', tab: 'cotizaciones' as const },
+                ].map(t => (
+                  <button key={t.tab} onClick={() => setTabActividad(t.tab)}
+                    style={{ padding: '6px 14px', borderRadius: '20px', border: 'none', fontSize: '12px', fontWeight: '500', cursor: 'pointer', background: tabActividad === t.tab ? '#0F2244' : '#F0F0F0', color: tabActividad === t.tab ? '#fff' : '#666', transition: 'all 0.15s' }}>
+                    {t.label}
+                  </button>
+                ))}
+              </div>
+              <select value={filtroVendedorActividad} onChange={e => setFiltroVendedorActividad(e.target.value)}
+                style={{ border: '0.5px solid #E0E3EC', borderRadius: '6px', padding: '6px 10px', fontSize: '12px', color: '#0F2244', background: '#fff', outline: 'none', marginLeft: 'auto' }}>
+                <option value="">Todos los vendedores</option>
+                {vendedores.map(v => (
+                  <option key={v.id} value={v.id}>{v.nombre}</option>
+                ))}
+              </select>
+            </div>
+
+            {tabActividad === 'pedidos' && (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                {pedidosFiltrados.length === 0 ? (
+                  <div style={{ background: '#fff', borderRadius: '10px', padding: '48px', border: '0.5px solid #E0E3EC', textAlign: 'center' }}>
+                    <div style={{ fontSize: '32px', marginBottom: '12px' }}>📭</div>
+                    <div style={{ fontSize: '14px', color: '#999' }}>No hay pedidos con estos filtros.</div>
+                  </div>
+                ) : pedidosFiltrados.map(p => (
+                  <div key={p.id} style={{ background: '#fff', border: '0.5px solid #E0E3EC', borderRadius: '10px', padding: '16px 18px', display: 'flex', alignItems: 'center' }}>
+                    <div style={{ width: '4px', alignSelf: 'stretch', borderRadius: '4px', background: p.estado === 'facturado' ? '#1A6B35' : '#D4A017', marginRight: '16px', flexShrink: 0 }} />
+                    <div style={{ flex: 1 }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '4px' }}>
+                        <span style={{ fontSize: '11px', fontWeight: '500', padding: '3px 9px', borderRadius: '10px', background: p.estado === 'facturado' ? '#D4EDDA' : '#FEF3CD', color: p.estado === 'facturado' ? '#1A6B35' : '#92610A' }}>
+                          {p.estado === 'facturado' ? '✅ Facturado' : '⏳ Pendiente'}
+                        </span>
+                        <span style={{ fontSize: '11px', color: '#bbb' }}>{formatFecha(p.creado_en)}</span>
+                      </div>
+                      <div style={{ fontSize: '14px', fontWeight: '600', color: '#0F2244' }}>{p.cliente_nombre}</div>
+                      {p.cliente_nit && <div style={{ fontSize: '12px', color: '#999', marginTop: '2px' }}>NIT: {p.cliente_nit}</div>}
+                      <div style={{ fontSize: '12px', color: '#999', marginTop: '4px' }}>
+                        Vendedor: <span style={{ fontWeight: '500', color: '#555' }}>{p.usuarios?.nombre || 'Sin asignar'}</span>
+                      </div>
                     </div>
-                  )
-                })}
+                    <div style={{ fontSize: '18px', fontWeight: '700', color: '#0F2244' }}>{formatMoney(p.total)}</div>
+                  </div>
+                ))}
               </div>
             )}
-          </div>
-        </div>
+
+            {tabActividad === 'cotizaciones' && (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                {cotizacionesFiltradas.length === 0 ? (
+                  <div style={{ background: '#fff', borderRadius: '10px', padding: '48px', border: '0.5px solid #E0E3EC', textAlign: 'center' }}>
+                    <div style={{ fontSize: '32px', marginBottom: '12px' }}>📋</div>
+                    <div style={{ fontSize: '14px', color: '#999' }}>No hay cotizaciones pendientes de convertir.</div>
+                  </div>
+                ) : cotizacionesFiltradas.map(c => (
+                  <div key={c.id} style={{ background: '#fff', border: '0.5px solid #E0E3EC', borderRadius: '10px', padding: '16px 18px', display: 'flex', alignItems: 'center' }}>
+                    <div style={{ width: '4px', alignSelf: 'stretch', borderRadius: '4px', background: '#6B21A8', marginRight: '16px', flexShrink: 0 }} />
+                    <div style={{ flex: 1 }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '4px' }}>
+                        <span style={{ fontSize: '11px', fontWeight: '500', padding: '3px 9px', borderRadius: '10px', background: '#F3E8FF', color: '#6B21A8' }}>
+                          📋 {c.estado === 'borrador' ? 'Borrador' : 'Enviada'}
+                        </span>
+                        <span style={{ fontSize: '11px', color: '#bbb' }}>{formatFecha(c.creado_en)}</span>
+                      </div>
+                      <div style={{ fontSize: '14px', fontWeight: '600', color: '#0F2244' }}>{c.cliente_nombre}</div>
+                      {c.cliente_nit && <div style={{ fontSize: '12px', color: '#999', marginTop: '2px' }}>NIT: {c.cliente_nit}</div>}
+                      <div style={{ fontSize: '12px', color: '#999', marginTop: '4px' }}>
+                        Vendedor: <span style={{ fontWeight: '500', color: '#555' }}>{c.usuarios?.nombre || 'Sin asignar'}</span>
+                      </div>
+                      {c.descuento_porcentaje > 0 && (
+                        <div style={{ fontSize: '11px', color: '#1A6B35', marginTop: '2px' }}>Descuento: {c.descuento_porcentaje}%</div>
+                      )}
+                    </div>
+                    <div style={{ textAlign: 'right' }}>
+                      <div style={{ fontSize: '12px', color: '#999', marginBottom: '2px' }}>Total</div>
+                      <div style={{ fontSize: '18px', fontWeight: '700', color: '#0F2244' }}>{formatMoney(c.total)}</div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </>
+        )}
       </main>
     </div>
   )
