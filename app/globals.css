@@ -24,3 +24,43 @@ body {
   color: var(--foreground);
   font-family: Arial, Helvetica, sans-serif;
 }
+
+/* ===== RESPONSIVE VENDEDOR ===== */
+
+.vendedor-sidebar { display: flex; }
+.vendedor-tabs-mobile { display: none; }
+.vendedor-navbar-mobile { display: none; }
+.vendedor-grid {
+  display: grid;
+  grid-template-columns: 220px 1fr;
+  min-height: 100vh;
+}
+.vendedor-main { padding: 28px; }
+.vendedor-cotizacion-grid {
+  display: grid;
+  grid-template-columns: 1fr 360px;
+  gap: 20px;
+  align-items: start;
+}
+.vendedor-resumen { position: sticky; top: 20px; }
+.vendedor-btn-generar { padding: 13px; font-size: 14px; }
+
+@media (max-width: 768px) {
+  /* Ocultar TODO el layout de PC */
+  .vendedor-grid { display: none !important; }
+  .vendedor-sidebar { display: none !important; }
+
+  /* Mostrar navbar y tabs móvil */
+  .vendedor-navbar-mobile { display: flex !important; }
+  .vendedor-tabs-mobile { display: flex !important; }
+
+  /* Contenido móvil en columna */
+  .vendedor-cotizacion-grid {
+    display: flex !important;
+    flex-direction: column;
+    gap: 12px;
+  }
+  .vendedor-main { padding: 14px; }
+  .vendedor-resumen { position: static; }
+  .vendedor-btn-generar { padding: 16px; font-size: 16px; }
+}
